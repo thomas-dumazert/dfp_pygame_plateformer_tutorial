@@ -1,80 +1,9 @@
 import pygame
 
-from scripts.entities import PhysicsEntity
+from scripts.entities import PhysicsEntity, Player
 from scripts.tilemap import Tilemap
 from scripts.clouds import Clouds
-from scripts.utils import load_image, load_images
-
-class Player:
-    def __init__(self, pos_x: int=0, pos_y: int=0, 
-                 colorkey: tuple=(0, 0, 0)) -> None:
-        self.pos = pygame.Vector2(pos_x, pos_y)
-        self.size = 40
-        self.movement = pygame.Vector2(0, 0)
-        self.speed = 300
-        self.img = pygame.image.load('data/images/clouds/cloud_1.png')
-        self.colorkey = colorkey
-        self.img.set_colorkey(self.colorkey)
-        self.collision_box = pygame.Rect(self.pos.x, self.pos.y, 
-                                         self.img.get_width(), 
-                                         self.img.get_height())
-
-    def run(self, dt, events=None) -> None:
-        if events is not None:
-            self.handle_events(events)
-            self.update_pos(dt)
-
-    def update_pos(self, dt):
-        self.pos += self.movement * self.speed * dt
-        self.collision_box = pygame.Rect(self.pos.x, self.pos.y, 
-                                         self.img.get_width(), 
-                                         self.img.get_height())
-
-    def handle_events(self, events) -> None:
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_s:
-                    self.movement.y += 1
-                if event.key == pygame.K_z:
-                    self.movement.y -= 1
-                if event.key == pygame.K_d:
-                    self.movement.x += 1
-                if event.key == pygame.K_q:
-                    self.movement.x -= 1
-            if event.type == pygame.KEYUP:
-                if event.key == pygame.K_s:
-                    self.movement.y -= 1
-                if event.key == pygame.K_z:
-                    self.movement.y += 1
-                if event.key == pygame.K_d:
-                    self.movement.x -= 1
-                if event.key == pygame.K_q:
-                    self.movement.x += 1
-    
-    def check_collision(self, objects: list=None) -> None:
-        if objects is not None:
-            for obj in objects:
-                if self.collision_box.colliderect(obj.collision_box):
-                    obj.collide_reaction(self)
-
-    def draw(self, screen):
-        screen.blit(self.img, self.pos)
-
-class CollisionRect:
-    def __init__(self, x, y, width, height, base_color: tuple, collision_color: tuple) -> None:
-        self.collision_box = pygame.Rect(x, y, width, height)
-        self.base_color = base_color
-        self.collision_color = collision_color
-        self.actual_color = self.base_color
-
-    def collide_reaction(self, _):
-        self.actual_color = self.collision_color
-
-    def run(self):
-        self.actual_color = self.base_color
-
-    def draw(self, screen) -> None:
-        pygame.draw.rect(screen, self.actual_color, self.collision_box)
+from scripts.utils import load_image, load_images, Animation
 
 class Game:
     def __init__(self) -> None:
@@ -98,9 +27,14 @@ class Game:
             'player': load_image('entities/player.png'),
             'background': load_image('background.png'),
             'clouds': load_images('clouds'),
+            'player/idle': Animation(load_images('entities/player/idle'), img_dur=6),
+            'player/run': Animation(load_images('entities/player/run'), img_dur=4),
+            'player/jump': Animation(load_images('entities/player/jump')),
+            'player/slide': Animation(load_images('entities/player/slide')),
+            'player/wall_slide': Animation(load_images('entities/player/wall_slide')),
         }
         
-        self.player = PhysicsEntity(self, 'player', (50, 50), (8, 15))
+        self.player = Player(self, (50, 50), (8, 15))
         self.movement = [False, False]
 
         self.tilemap = Tilemap(self, tile_size=16)
