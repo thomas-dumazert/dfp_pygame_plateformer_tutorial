@@ -1,4 +1,12 @@
+import math
+import random
+
 import pygame
+
+from scripts.particle import Particle
+
+TRANSITION_DELAY = 5    # Number of frames before transitioning from a 
+                        # state to another
 
 class PhysicsEntity:
     def __init__(self, game, e_type, pos, size) -> None:
@@ -14,6 +22,11 @@ class PhysicsEntity:
         self.anim_offset = (-3, -3)
         self.flip = False
         self.set_action('idle')
+
+        self.last_movement = [0, 0]
+
+        self.fall_acceleration = 0.1
+        self.terminal_velocity = 5
     
     def rect(self) -> pygame.Rect:
         return pygame.Rect(self.pos[0], self.pos[1], 
@@ -59,8 +72,11 @@ class PhysicsEntity:
             self.flip = False
         if movement[0] < 0:
             self.flip = True
+        
+        self.last_movement = movement
 
-        self.velocity[1] = min(5, self.velocity[1]+0.1)
+        self.velocity[1] = min(self.terminal_velocity, 
+                               self.velocity[1] + self.fall_acceleration)
 
         if self.collisions['up'] or self.collisions['down']:
             self.velocity[1] = 0
@@ -80,6 +96,53 @@ class Player(PhysicsEntity):
         super().__init__(game, 'player', pos, size)
         self.air_time = 0
 
+        self.jumps = 1
+        self.remaining_jumps = self.jumps
+        self.jump_velocity = -3
+
+        self.wall_slide = False
+        self.wall_slide_fall_velocity = 0.5
+        self.wall_slide_impulse_velocity = (3.5, -2.5)
+
+        self.dashing = 0
+        self.dash_cooldown = 50
+        self.dash_duration = 10
+        self.dash_cycle = self.dash_cooldown + self.dash_duration
+        self.dash_velocity = 8
+        self.dash_final_brake = 0.1
+
+        self.stream_velocity = 3
+    
+    def jump(self) -> bool:
+        if self.wall_slide:
+            if self.flip and self.last_movement[0] < 0:
+                self.velocity[0] = self.wall_slide_impulse_velocity[0]
+                self.velocity[1] = self.wall_slide_impulse_velocity[1]
+                self.air_time = TRANSITION_DELAY
+                self.remaining_jumps = max(self.remaining_jumps - 1, 0)
+                return True
+            elif not self.flip and self.last_movement[0] > 0:
+                self.velocity[0] = -self.wall_slide_impulse_velocity[0]
+                self.velocity[1] = self.wall_slide_impulse_velocity[1]
+                self.air_time = TRANSITION_DELAY
+                self.remaining_jumps = max(self.remaining_jumps - 1, 0)
+                return True
+
+        elif self.remaining_jumps:
+            self.remaining_jumps -= 1
+            self.velocity[1] = self.jump_velocity
+            self.air_time = TRANSITION_DELAY
+            return True
+
+        return False
+    
+    def dash(self):
+        if not self.dashing:
+            if self.flip:
+                self.dashing = -self.dash_cycle
+            else:
+                self.dashing = self.dash_cycle
+
     def update(self, tilemap, movement=(0, 0)):
         super().update(tilemap, movement)
 
@@ -87,10 +150,70 @@ class Player(PhysicsEntity):
 
         if self.collisions['down']:
             self.air_time = 0
+            self.remaining_jumps = self.jumps
         
-        if self.air_time > 4:
-            self.set_action('jump')
-        elif movement[0] != 0:
-            self.set_action('run')
-        else:
-            self.set_action('idle')
+        self.wall_slide = False
+        if (self.collisions['right'] or self.collisions['left']) and \
+            self.air_time >= TRANSITION_DELAY:
+            self.wall_slide = True
+            self.velocity[1] = min(self.velocity[1], 
+                                   self.wall_slide_fall_velocity)
+
+            if self.collisions['right']:
+                self.flip = False
+            else:
+                self.flip = True
+            
+            self.set_action('wall_slide')
+        
+        if not self.wall_slide:
+            if self.air_time >= TRANSITION_DELAY:
+                self.set_action('jump')
+            elif movement[0] != 0:
+                self.set_action('run')
+            else:
+                self.set_action('idle')
+
+        if abs(self.dashing) in {self.dash_cycle, self.dash_cooldown}:
+            self.burst_particles()
+        
+        if self.dashing > 0:
+            self.dashing = max(self.dashing - 1, 0)
+        if self.dashing < 0:
+            self.dashing = min(self.dashing + 1, 0)
+
+        if abs(self.dashing) > self.dash_cooldown:
+            direction = abs(self.dashing) / self.dashing
+            self.velocity[0] = direction * self.dash_velocity
+            if abs(self.dashing) == self.dash_cooldown + 1:
+                self.velocity[0] *= self.dash_final_brake
+            self.stream_particules()
+        
+        
+        
+        if self.velocity[0] > 0:
+            self.velocity[0] = max(self.velocity[0] - 0.1, 0)
+        elif self.velocity[0] < 0:
+            self.velocity[0] = min(self.velocity[0] + 0.1, 0)
+    
+    def render(self, surf, offset=(0, 0)):
+        if abs(self.dashing) <= self.dash_cooldown:
+            super().render(surf, offset)
+    
+    def burst_particles(self):
+        for _ in range(20):
+            angle = random.random() * math.pi * 2
+            speed = random.random() * 0.5 + 0.5
+            p_velocity = [math.cos(angle) * speed, math.sin(angle) * speed]
+            self.game.particles.append(Particle(self.game, 'particle', 
+                                                self.rect().center, 
+                                                velocity=p_velocity,
+                                                frame=random.randint(0, 7)))
+    
+    def stream_particules(self):
+        p_velocity = [abs(self.dashing) / self.dashing \
+                      * random.random() * self.stream_velocity, 0]
+        self.game.particles.append(Particle(self.game, 'particle', 
+                                                self.rect().center, 
+                                                velocity=p_velocity,
+                                                frame=random.randint(0, 7)))
