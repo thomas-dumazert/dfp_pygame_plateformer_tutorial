@@ -104,9 +104,16 @@ class Tilemap:
                                          self.tile_size, self.tile_size))
         
         return rects
+
+    def solid_check(self, pos):
+        tile_loc = str(int(pos[0] // self.tile_size)) + ';' + \
+            str(int(pos[1] // self.tile_size))
+        if tile_loc in self.tilemap:
+            if self.tilemap[tile_loc]['type'] in PHYSICS_TILES:
+                return self.tilemap[tile_loc]
     
     def render(self, surf, offset=(0, 0)) -> None:
-        # Followinf for loop can be optimized
+        # Following for loop can be optimized
         for tile in self.offgrid_tiles:
             surf.blit(self.game.assets[tile['type']][tile['variant']], 
                       (tile['pos'][0]-offset[0], tile['pos'][1]-offset[1]))

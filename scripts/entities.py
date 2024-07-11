@@ -217,3 +217,63 @@ class Player(PhysicsEntity):
                                                 self.rect().center, 
                                                 velocity=p_velocity,
                                                 frame=random.randint(0, 7)))
+
+class Enemy(PhysicsEntity):
+    def __init__(self, game, pos, size) -> None:
+        super().__init__(game, 'enemy', pos, size)
+        
+        self.wake_up_chance = 0.01
+
+        self.walking = 0
+        self.walking_speed = 0.5
+        self.walking_duration_range = (30, 120)
+
+        self.gun_pos = (4, 2)
+
+        self.shooting_range = (0, 16)
+
+    def update(self, tilemap, movement=(0, 0)) -> None:
+        if self.walking:
+            # +/- 7 and 23 allow to check the tiles in front and below 
+            # the enemy. Those can be computed from enemy and tile 
+            # sizes.
+            if tilemap.solid_check((self.rect().centerx + (-7 if self.flip else 7), self.pos[1] + 23)):
+                movement = (movement[0] - self.walking_speed \
+                            if self.flip else self.walking_speed, movement[1])
+            else:
+                self.flip = not self.flip
+            self.walking = max(self.walking - 1, 0)
+
+            if not self.walking:
+                dis = (self.game.player.pos[0] - self.pos[0], self.game.player.pos[1] - self.pos[1])
+                if abs(dis[1]) < self.shooting_range[1]:
+                    if self.flip and dis[0] < 0:
+                        self.game.projectiles.append([[self.rect().centerx - 7, self.rect().centery], -1.5, 0])
+                    if not self.flip and dis[0] > 0:
+                        self.game.projectiles.append([[self.rect().centerx + 7, self.rect().centery], 1.5, 0])
+        elif random.random() < self.wake_up_chance:
+            self.walking = random.randint(*self.walking_duration_range)
+
+        super().update(tilemap, movement)
+
+        if movement[0] != 0:
+            self.set_action('run')
+        else:
+            self.set_action('idle')
+    def render(self, surf, offset=(0, 0)):
+        super().render(surf, offset)
+
+        if self.flip:
+            surf.blit(pygame.transform.flip(self.game.assets['gun'], 
+                                            True, False), 
+                                            (self.rect().centerx \
+                                             - self.gun_pos[0] \
+                                                - self.game.assets['gun'].get_width() \
+                                                    - offset[0], 
+                                             self.rect().centery \
+                                                - self.gun_pos[1] \
+                                                    - offset[1]))
+        else:
+            surf.blit(self.game.assets['gun'], 
+                      (self.rect().centerx + self.gun_pos[0] - offset[0], 
+                       self.rect().centery - self.gun_pos[1] - offset[1]))
