@@ -66,7 +66,7 @@ class Tilemap:
             json.dump({
                 'tilemap': self.tilemap,
                 'tile_size': self.tile_size,
-                'offgrid_tiles': self.offgrid_tiles,
+                'offgrid': self.offgrid_tiles,
             }, f)
 
     def load(self, path):
@@ -75,7 +75,7 @@ class Tilemap:
         
         self.tilemap = map_data['tilemap']
         self.tile_size = map_data['tile_size']
-        self.offgrid_tiles = map_data['offgrid_tiles']
+        self.offgrid_tiles = map_data['offgrid']
     
     def autotile(self):
         for loc in self.tilemap:
