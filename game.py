@@ -1,5 +1,6 @@
 import random
 import math
+import os
 
 import pygame
 
@@ -69,9 +70,10 @@ class Game:
         self.camera_acc = 30
 
         self.restart_timer = 40
+        self.transition_timer = 30
 
-        self.current_level = 0
-        self.load_level(self.current_level)
+        self.level = 0
+        self.load_level(self.level)
 
         self.screenshake = 0
         self.screen_shake_force = 16
@@ -101,6 +103,8 @@ class Game:
         self.scroll = [0, 0]
 
         self.dead = 0
+
+        self.transition = -self.transition_timer
     
     def handle_events(self) -> None:
         events = pygame.event.get()
@@ -108,18 +112,18 @@ class Game:
             if event.type == pygame.QUIT:
                 self.running = False
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:
+                if event.key == pygame.K_LEFT:
                     self.movement[0] = True
-                if event.key == pygame.K_d:
+                if event.key == pygame.K_RIGHT:
                     self.movement[1] = True
-                if event.key == pygame.K_z:
-                    self.player.jump()
                 if event.key == pygame.K_SPACE:
+                    self.player.jump()
+                if event.key == pygame.K_c:
                     self.player.dash()
             if event.type == pygame.KEYUP:
-                if event.key == pygame.K_q:
+                if event.key == pygame.K_LEFT:
                     self.movement[0] = False
-                if event.key == pygame.K_d:
+                if event.key == pygame.K_RIGHT:
                     self.movement[1] = False
 
     def run(self) -> None:
@@ -128,10 +132,21 @@ class Game:
 
             self.screenshake = max(self.screenshake - 1, 0)
 
+            if not len(self.enemies):
+                self.transition += 1
+                if self.transition > self.transition_timer:
+                    self.level = min(self.level + 1, len(os.listdir(MAPS_ROOT)) - 1)
+                    self.load_level(self.level)
+            if self.transition < 0:
+                self.transition += 1
+
             if self.dead:
                 self.dead += 1
+                if self.dead >= self.restart_timer - self.transition_timer:
+                    self.transition = min(self.transition + 1, 
+                                          self.transition_timer)
                 if self.dead > self.restart_timer:
-                    self.load_level(self.current_level)
+                    self.load_level(self.level)
 
             self.scroll[0] += (self.player.rect().centerx - \
                                self.display.get_width() / 2 - \
@@ -235,6 +250,15 @@ class Game:
                 
             for particle in self.particles:
                 particle.render(self.display, offset=render_scroll)
+
+            if self.transition:
+                transition_surf = pygame.Surface(self.display.get_size())
+                pygame.draw.circle(transition_surf, (255, 255, 255), 
+                                   (self.display.get_width() // 2, 
+                                    self.display.get_height() // 2), 
+                                   (self.transition_timer - abs(self.transition)) * 8)
+                transition_surf.set_colorkey((255, 255, 255))
+                self.display.blit(transition_surf, (0, 0))
 
             screenshake_offset = (
                 random.random() * self.screenshake - self.screenshake / 2,
