@@ -140,6 +140,7 @@ class Player(PhysicsEntity):
     
     def dash(self):
         if not self.dashing:
+            self.game.sfx['dash'].play()
             if self.flip:
                 self.dashing = -self.dash_cycle
             else:
@@ -264,6 +265,7 @@ class Enemy(PhysicsEntity):
         
         if abs(self.game.player.dashing) > self.game.player.dash_cooldown:
             if self.rect().colliderect(self.game.player.rect()):
+                self.game.sfx['hit'].play()
                 self.dying()
                 return True
             
@@ -285,6 +287,7 @@ class Enemy(PhysicsEntity):
             
     def shoot(self, dis):
         if self.flip and dis[0] < 0:
+            self.game.sfx['shoot'].play()
             self.game.projectiles.append([[self.rect().centerx - 7, 
                                            self.rect().centery], 
                                           -1.5, 0])
@@ -293,10 +296,11 @@ class Enemy(PhysicsEntity):
                                               random.random() - 0.5 + math.pi, 
                                               2 + random.random()))
         if not self.flip and dis[0] > 0:
+            self.game.sfx['shoot'].play()
             self.game.projectiles.append([[self.rect().centerx + 7, 
                                            self.rect().centery], 
                                           1.5, 0])
-            for i in range(4):
+            for _ in range(4):
                 self.game.sparks.append(Spark(self.game.projectiles[-1][0], 
                                               random.random() - 0.5, 
                                               2 + random.random()))

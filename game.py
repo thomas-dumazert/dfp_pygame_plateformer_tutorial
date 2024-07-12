@@ -56,6 +56,20 @@ class Game:
             'gun': load_image('gun.png'),
             'projectile': load_image('projectile.png'),
         }
+
+        self.sfx = {
+            'jump': pygame.mixer.Sound(SFX_ROOT + 'jump.wav'),
+            'dash': pygame.mixer.Sound(SFX_ROOT + 'dash.wav'),
+            'hit': pygame.mixer.Sound(SFX_ROOT + 'hit.wav'),
+            'shoot': pygame.mixer.Sound(SFX_ROOT + 'shoot.wav'),
+            'ambience': pygame.mixer.Sound(SFX_ROOT + 'ambience.wav'),
+        }
+
+        self.sfx['ambience'].set_volume(0.2)
+        self.sfx['shoot'].set_volume(0.4)
+        self.sfx['hit'].set_volume(0.8)
+        self.sfx['dash'].set_volume(0.3)
+        self.sfx['jump'].set_volume(0.7)
         
         self.player = Player(self, (50, 50), (8, 15))
         self.movement = [False, False]
@@ -117,7 +131,8 @@ class Game:
                 if event.key == pygame.K_RIGHT:
                     self.movement[1] = True
                 if event.key == pygame.K_SPACE:
-                    self.player.jump()
+                    if self.player.jump():
+                        self.sfx['jump'].play()
                 if event.key == pygame.K_c:
                     self.player.dash()
             if event.type == pygame.KEYUP:
@@ -127,6 +142,12 @@ class Game:
                     self.movement[1] = False
 
     def run(self) -> None:
+        pygame.mixer.music.load('data/music.wav')
+        pygame.mixer.music.set_volume(0.5)
+        pygame.mixer.music.play(-1)
+
+        self.sfx['ambience'].play(-1)
+
         while self.running:
             self.display.fill((0, 0, 0, 0))
             self.display_2.blit(self.assets['background'], (0, 0))
@@ -201,6 +222,7 @@ class Game:
                     if self.player.rect().collidepoint(projectile[0]):
                         self.projectiles.remove(projectile)
                         self.dead += 1
+                        self.sfx['hit'].play()
                         self.screenshake = max(self.screen_shake_force, self.screenshake)
                         for _ in range(30):
                             angle = random.random() * math.pi * 2
