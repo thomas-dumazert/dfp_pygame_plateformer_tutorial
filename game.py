@@ -21,8 +21,8 @@ class Game:
 
         pygame.display.set_caption('ninja game')
         self.screen = pygame.display.set_mode((640, 480))
-        self.display = pygame.Surface((320, 240))
-        self.bg_color = (14, 219, 248)
+        self.display = pygame.Surface((320, 240), pygame.SRCALPHA)
+        self.display_2 = pygame.Surface((320, 240))
 
         self.clock = pygame.time.Clock()
         self.dt = 0
@@ -128,7 +128,8 @@ class Game:
 
     def run(self) -> None:
         while self.running:
-            self.display.blit(self.assets['background'], (0, 0))
+            self.display.fill((0, 0, 0, 0))
+            self.display_2.blit(self.assets['background'], (0, 0))
 
             self.screenshake = max(self.screenshake - 1, 0)
 
@@ -228,7 +229,7 @@ class Game:
 
             self.handle_events()
 
-            self.clouds.render(self.display, offset=render_scroll)
+            self.clouds.render(self.display_2, offset=render_scroll)
             self.tilemap.render(self.display, offset=render_scroll)
             
             for enemy in self.enemies.copy():
@@ -247,6 +248,12 @@ class Game:
             
             for spark in self.sparks:
                 spark.render(self.display, offset=render_scroll)
+            
+            display_mask = pygame.mask.from_surface(self.display)
+            display_silhouette = display_mask.to_surface(setcolor=(0, 0, 0, 180), 
+                                                         unsetcolor=(0, 0, 0, 0))
+            for offset in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                self.display_2.blit(display_silhouette, offset)
                 
             for particle in self.particles:
                 particle.render(self.display, offset=render_scroll)
@@ -260,11 +267,13 @@ class Game:
                 transition_surf.set_colorkey((255, 255, 255))
                 self.display.blit(transition_surf, (0, 0))
 
+            self.display_2.blit(self.display, (0, 0))
+
             screenshake_offset = (
                 random.random() * self.screenshake - self.screenshake / 2,
                 random.random() * self.screenshake - self.screenshake / 2
             )
-            self.screen.blit(pygame.transform.scale(self.display, 
+            self.screen.blit(pygame.transform.scale(self.display_2, 
                                                     self.screen.get_size()), 
                                                     screenshake_offset)
             pygame.display.flip()
