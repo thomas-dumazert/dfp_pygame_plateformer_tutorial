@@ -72,6 +72,10 @@ class Game:
 
         self.current_level = 0
         self.load_level(self.current_level)
+
+        self.screenshake = 0
+        self.screen_shake_force = 16
+        self.player_fall_time_limit = 120
     
     def load_level(self, map_id):
         self.tilemap.load(MAPS_ROOT + str(map_id) + '.json')
@@ -86,6 +90,7 @@ class Game:
         for spawner in self.tilemap.extract([('spawners', 0), ('spawners', 1)]):
             if spawner['variant'] == 0:
                 self.player.pos = spawner['pos']
+                self.player.air_time = 0
             else:
                 self.enemies.append(Enemy(self, spawner['pos'], (8, 15)))
         
@@ -121,6 +126,8 @@ class Game:
         while self.running:
             self.display.blit(self.assets['background'], (0, 0))
 
+            self.screenshake = max(self.screenshake - 1, 0)
+
             if self.dead:
                 self.dead += 1
                 if self.dead > self.restart_timer:
@@ -150,11 +157,16 @@ class Game:
             for enemy in self.enemies.copy():
                 kill = enemy.update(self.tilemap, (0, 0))
                 if kill:
+                    self.screenshake = max(self.screen_shake_force, self.screenshake)
                     self.enemies.remove(enemy)
             
             if not self.dead:
                 self.player.update(self.tilemap, 
                                 (self.movement[1] - self.movement[0], 0))
+                if self.player.air_time > self.player_fall_time_limit:
+                    if not self.dead:
+                        self.dead += 1
+                        self.screenshake = max(self.screen_shake_force, self.screenshake)
             
             # [[x, y], direction, timer]
             for projectile in self.projectiles.copy():
@@ -173,6 +185,7 @@ class Game:
                     if self.player.rect().collidepoint(projectile[0]):
                         self.projectiles.remove(projectile)
                         self.dead += 1
+                        self.screenshake = max(self.screen_shake_force, self.screenshake)
                         for _ in range(30):
                             angle = random.random() * math.pi * 2
                             speed = random.random() * 5
@@ -223,9 +236,13 @@ class Game:
             for particle in self.particles:
                 particle.render(self.display, offset=render_scroll)
 
+            screenshake_offset = (
+                random.random() * self.screenshake - self.screenshake / 2,
+                random.random() * self.screenshake - self.screenshake / 2
+            )
             self.screen.blit(pygame.transform.scale(self.display, 
                                                     self.screen.get_size()), 
-                                                    (0, 0))
+                                                    screenshake_offset)
             pygame.display.flip()
             self.dt = self.clock.tick(60) / 1000
 

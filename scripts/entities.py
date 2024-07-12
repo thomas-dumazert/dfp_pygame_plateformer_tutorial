@@ -113,6 +113,7 @@ class Player(PhysicsEntity):
         self.dash_final_brake = 0.1
 
         self.stream_velocity = 3
+        self.fall_time_limit = 120
     
     def jump(self) -> bool:
         if self.wall_slide:
